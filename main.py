@@ -1,15 +1,17 @@
+import argparse
 import os
 from dotenv import load_dotenv
 from google import genai
-import argparse
+from google.genai import types
 
 
 
 def main():
     parser = argparse.ArgumentParser(description="Chatbot")
     parser.add_argument("user_prompt", type=str, help="User prompt")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
-    user_prompt = args.user_prompt
+        
 
     load_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -17,24 +19,30 @@ def main():
         raise RuntimeError("Gemini API Key Not found!")
 
     client = genai.Client(api_key= api_key)
+
+    messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}\n")
+
+    generate_content(client, messages, args.verbose)
+
+
+def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model ='gemini-2.5-flash',
-        contents = user_prompt
+        contents = messages
         )
 
     token_metadata = response.usage_metadata
     if not token_metadata:
-        raise RuntimeError("failed API request, no metadata recieved")
+        raise RuntimeError("Gemini API response is incomplete, no metadata recieved")
     
-    response_text = response.text
-    prompt_token_count = token_metadata.prompt_token_count
-    response_token_count = token_metadata.candidates_token_count
+    if verbose:
+        print(f"Prompt tokens: {token_metadata.prompt_token_count}")
+        print(f"Response tokens: {token_metadata.candidates_token_count}")
 
-    print(f"User prompt: {user_prompt}")
-    print(f"Prompt tokens: {prompt_token_count}")
-    print(f"Response tokens: {response_token_count}")
     print("Response:")
-    print(response_text)
+    print(response.text)
 
 
 
