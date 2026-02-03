@@ -35,8 +35,7 @@ def generate_content(client, messages, verbose):
         contents = messages,
         config = types.GenerateContentConfig(
             tools=[available_functions],
-            system_instruction = system_prompt,
-            temperature = 0),
+            system_instruction = system_prompt),
         )
     function_call = response.function_calls
     token_metadata = response.usage_metadata
