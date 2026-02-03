@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from prompts import system_prompt
+from call_function import available_functions
 
 
 
@@ -30,9 +32,13 @@ def main():
 def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model ='gemini-2.5-flash',
-        contents = messages
+        contents = messages,
+        config = types.GenerateContentConfig(
+            tools=[available_functions],
+            system_instruction = system_prompt,
+            temperature = 0),
         )
-
+    function_call = response.function_calls
     token_metadata = response.usage_metadata
     if not token_metadata:
         raise RuntimeError("Gemini API response is incomplete, no metadata recieved")
@@ -41,8 +47,14 @@ def generate_content(client, messages, verbose):
         print(f"Prompt tokens: {token_metadata.prompt_token_count}")
         print(f"Response tokens: {token_metadata.candidates_token_count}")
 
-    print("Response:")
-    print(response.text)
+    if function_call:
+        print("Function calls")
+        for call in function_call:
+            print(f"Calling function: {call.name}({call.args})")
+    else:
+        print("Response:")
+        print(response.text)
+
 
 
 
