@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from prompts import system_prompt
-from call_function import available_functions
+from call_function import available_functions, call_function
 
 
 
@@ -37,7 +37,6 @@ def generate_content(client, messages, verbose):
             tools=[available_functions],
             system_instruction = system_prompt),
         )
-    function_call = response.function_calls
     token_metadata = response.usage_metadata
     if not token_metadata:
         raise RuntimeError("Gemini API response is incomplete, no metadata recieved")
@@ -46,10 +45,21 @@ def generate_content(client, messages, verbose):
         print(f"Prompt tokens: {token_metadata.prompt_token_count}")
         print(f"Response tokens: {token_metadata.candidates_token_count}")
 
-    if function_call:
+    function_result = []
+
+    if response.function_calls:
         print("Function calls")
-        for call in function_call:
-            print(f"Calling function: {call.name}({call.args})")
+        for call in response.function_calls:
+            function_call_result = call_function(call, verbose)
+            if not function_call_result.parts:
+                raise Exception("funciton call doesn't have parts property")
+            if not function_call_result.parts[0]:
+                raise Exception
+            if not function_call_result.parts[0].function_response.response:
+                raise Exception("no response from the function call")
+            function_result.append(function_call_result.parts[0])
+            if verbose:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
     else:
         print("Response:")
         print(response.text)
