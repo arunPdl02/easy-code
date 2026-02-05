@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -25,44 +26,56 @@ def main():
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
     if args.verbose:
         print(f"User prompt: {args.user_prompt}\n")
-
+    
     generate_content(client, messages, args.verbose)
 
 
 def generate_content(client, messages, verbose):
-    response = client.models.generate_content(
-        model ='gemini-2.5-flash',
-        contents = messages,
-        config = types.GenerateContentConfig(
-            tools=[available_functions],
-            system_instruction = system_prompt),
-        )
-    token_metadata = response.usage_metadata
-    if not token_metadata:
-        raise RuntimeError("Gemini API response is incomplete, no metadata recieved")
-    
-    if verbose:
-        print(f"Prompt tokens: {token_metadata.prompt_token_count}")
-        print(f"Response tokens: {token_metadata.candidates_token_count}")
+    for _ in range(20):
+        response = client.models.generate_content(
+            model ='gemini-2.5-flash',
+            contents = messages,
+            config = types.GenerateContentConfig(
+                tools=[available_functions],
+                system_instruction = system_prompt),
+            )
+        response.usage_metadata
+        if not response.usage_metadata:
+            raise RuntimeError("Gemini API response is incomplete, no metadata recieved")
+        
+        if response.candidates:
+            for candidate in response.candidates:
+                messages.append(candidate.content)
 
-    function_result = []
+        if verbose:
+            print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
+            print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-    if response.function_calls:
-        print("Function calls")
-        for call in response.function_calls:
-            function_call_result = call_function(call, verbose)
-            if not function_call_result.parts:
-                raise Exception("funciton call doesn't have parts property")
-            if not function_call_result.parts[0]:
-                raise Exception
-            if not function_call_result.parts[0].function_response.response:
-                raise Exception("no response from the function call")
-            function_result.append(function_call_result.parts[0])
-            if verbose:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
-    else:
-        print("Response:")
-        print(response.text)
+        function_responses = []
+
+        if response.function_calls:
+            print("Function calls")
+            for call in response.function_calls:
+                function_call_result = call_function(call, verbose)
+                if not function_call_result.parts:
+                    raise Exception("funciton call doesn't have parts property")
+                if not function_call_result.parts[0]:
+                    raise Exception
+                if not function_call_result.parts[0].function_response.response:
+                    raise Exception("no response from the function call")
+
+                function_responses.append(function_call_result.parts[0])
+                messages.append(types.Content(role="user", parts=function_responses))
+
+                if verbose:
+                    print(f"-> {function_call_result.parts[0].function_response.response}")
+        else:
+            print("Response:")
+            print(response.text)
+            return
+    print("Maximum number of model iteration reached")
+    sys.exit(1)
+
 
 
 
