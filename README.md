@@ -33,6 +33,9 @@ easy-code/
 ├── test_get_files_info.py # Function-level tests
 ├── test_run_python.py # Function-level tests
 ├── test_write_file.py # Function-level tests
+├── pyproject.toml
+├── prompts.py
+├── config.py
 ```
 
 ## How the Agent Works
@@ -120,7 +123,7 @@ This ensures:
 ### Install Dependencies
 bash
 ```
-pip install -r requirements.txt
+pip install .
 ```
 
 Set API Key
